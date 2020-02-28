@@ -5,7 +5,7 @@
 
 ## 準備
 
-- スプレッドシート
+- スプレッドシートにアプリの書き込み権限を与える
 
   - 参考：[Using OAuth2 for Authentication — gspread 3.1.0 documentation](https://gspread.readthedocs.io/en/latest/oauth2.html)
   - 参考： [【もう迷わない】Python でスプレッドシートに読み書きする初期設定まとめ | たぬハック ](https://tanuhack.com/operate-spreadsheet/)
