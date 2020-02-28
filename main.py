@@ -1,18 +1,34 @@
+# -*- coding: utf-8 -*-
 from oauth2client.service_account import ServiceAccountCredentials
 import sys
 import pyocr
 import pyocr.builders
-
-from dotenv import load_dotenv
 
 from PIL import Image
 import os
 import datetime
 
 import gspread
-import json
+import re
+import glob
 
 import getenv
+
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+import time
+
+
+class ChangeHandler(FileSystemEventHandler):
+
+    def on_created(self, event):
+        # img_path = event.src_path を使うと
+        # ダウンロード一時ファイルが得られてしまうので
+        # 力技でファイルを取得する
+        time.sleep(1)
+        list_of_files = glob.glob(getenv.TARGET_DIR+"/*")
+        img_path = max(list_of_files, key=os.path.getctime)
+        log_downloaded_image(img_path)
 
 
 class TypingResult:
@@ -48,14 +64,21 @@ def get_sheet():
     return wks
 
 
-def imageToText(src):
+def write_sheet(data):
+    header = list(data.keys())
+    latest = list(data.values())
+    sheet = get_sheet()
+    sheet.append_row(latest)
+
+
+def image_to_text(src):
     tools = pyocr.get_available_tools()
     if len(tools) == 0:
         print("No OCR tool found")
         sys.exit(1)
 
     tool = tools[0]
-
+    src.save("cr.png")
     dst = tool.image_to_string(
         src,
         builder=pyocr.builders.DigitBuilder(tesseract_layout=6)
@@ -63,47 +86,61 @@ def imageToText(src):
     return dst
 
 
-def ocr_image(img_path):
-    img = Image.open(img_path).convert("L")
-    img.point(lambda x: 0 if x < 128 else x)
+def ocr_from_image(img_path):
+    img = Image.open(img_path).convert("L").point(
+        lambda x: 0 if x < 192 else 255, mode="1")
     crops = {"types": (281, 145, 330, 172),
-             "time_m": (251, 196, 273, 221),
-             "time_s": (296, 196, 332, 221),
+             "time_m": (251, 194, 273, 223),
+             "time_s": (297, 195, 331, 222),
              "speed": (271, 245, 333, 273),
-             "misstypes": (297, 295, 333, 332),
+             "misstypes": (297, 295, 333, 322),
              }
-
     ocr_result = {}
-    output = {}
-
     for k, v in crops.items():
-        out = imageToText(img.crop(v))
+        out = image_to_text(img.crop(v))
         ocr_result[k] = out
 
+    return ocr_result
+
+
+def ocr_image(img_path):
+    ocr_result = ocr_from_image(img_path)
+    output = {}
     output["date"] = datetime.datetime.fromtimestamp(
         os.stat(img_path).st_atime).strftime("%Y/%m/%d %H:%M:%S")
-    output["types"] = ocr_result["types"]
+    output["types"] = int(ocr_result["types"])
     output["time"] = int(ocr_result["time_m"]) * 60 + int(ocr_result["time_s"])
-    output["misstypes"] = ocr_result["misstypes"]
-    output["speed"] = ocr_result["speed"]
+    output["misstypes"] = int(ocr_result["misstypes"])
+    output["speed"] = float(ocr_result["speed"])
     output["missrate"] = int(ocr_result["misstypes"]) / \
         int(ocr_result["types"])
     return output
 
 
-def detect_downloaded_image():
-    # return
-    pass
+def log_downloaded_image(img_path):
+    m = re.search(r'img[0-9]{11,12}.jpg$', img_path)
+
+    if(m == None):
+        print("this is not typing result")
+    else:
+        typing_data = ocr_image(img_path)
+        print(typing_data)
+        write_sheet(typing_data)
+
+
+def watch_directory():
+    while 1:
+        event_handler = ChangeHandler()
+        observer = Observer()
+        observer.schedule(event_handler, getenv.TARGET_DIR, recursive=True)
+        observer.start()
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            observer.stop()
+        observer.join()
 
 
 if __name__ == "__main__":
-    img_path = sys.argv[1]
-    typing_data = ocr_image(img_path)
-    print(typing_data)
-    # sheet = get_sheet()
-    # cell_list = sheet.range('A1:A7')
-    # print(cell_list)
-
-    # 先頭の行に date, types, time, misstypes, speed, missrateの順に書く
-
-    # データのある最終行を見つけてそこにデータを追加
+    watch_directory()
