@@ -3,3 +3,4 @@ img
 *.json
 __pycache__
 .env
+*.jpg

@@ -31,16 +31,6 @@ class ChangeHandler(FileSystemEventHandler):
         log_downloaded_image(img_path)
 
 
-class TypingResult:
-    def __init__(self, types, time, misstypes):
-        self.types = types
-        self.time = time
-        self.misstypes = misstypes
-
-    def calc_misstype_rate(self):
-        return self.misstypes / self.types
-
-
 def get_sheet():
     # ServiceAccountCredentials：Googleの各サービスへアクセスできるservice変数を生成します。
 
@@ -69,6 +59,7 @@ def write_sheet(data):
     latest = list(data.values())
     sheet = get_sheet()
     sheet.append_row(latest)
+    print(f"Uploaded: {data}")
 
 
 def image_to_text(src):
@@ -78,7 +69,6 @@ def image_to_text(src):
         sys.exit(1)
 
     tool = tools[0]
-    src.save("cr.png")
     dst = tool.image_to_string(
         src,
         builder=pyocr.builders.DigitBuilder(tesseract_layout=6)
@@ -98,6 +88,7 @@ def ocr_from_image(img_path):
     ocr_result = {}
     for k, v in crops.items():
         out = image_to_text(img.crop(v))
+        # img.crop(v).save(f"{k}_{os.path.basename(img_path)}")
         ocr_result[k] = out
 
     return ocr_result
@@ -124,11 +115,11 @@ def log_downloaded_image(img_path):
         print("this is not typing result")
     else:
         typing_data = ocr_image(img_path)
-        print(typing_data)
         write_sheet(typing_data)
 
 
 def watch_directory():
+    print(f"Monitoring directory {getenv.TARGET_DIR} ...")
     while 1:
         event_handler = ChangeHandler()
         observer = Observer()
