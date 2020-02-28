@@ -22,9 +22,8 @@ import time
 class ChangeHandler(FileSystemEventHandler):
 
     def on_created(self, event):
-        # img_path = event.src_path を使うと
-        # ダウンロード一時ファイルが得られてしまうので
-        # 力技でファイルを取得する
+        # event.src_path だとダウンロード一時ファイルが得られてしまうので
+        # イベントが発火して少し待ってから最新のファイルを取得する
         time.sleep(1)
         list_of_files = glob.glob(getenv.TARGET_DIR+"/*")
         img_path = max(list_of_files, key=os.path.getctime)
@@ -32,23 +31,11 @@ class ChangeHandler(FileSystemEventHandler):
 
 
 def get_sheet():
-    # ServiceAccountCredentials：Googleの各サービスへアクセスできるservice変数を生成します。
-
-    # 2つのAPIを記述しないとリフレッシュトークンを3600秒毎に発行し続けなければならない
     scope = ['https://spreadsheets.google.com/feeds',
              'https://www.googleapis.com/auth/drive']
-
-    # 認証情報設定
-    # ダウンロードしたjsonファイル名をクレデンシャル変数に設定（秘密鍵、Pythonファイルから読み込みしやすい位置に置く）
     credentials = ServiceAccountCredentials.from_json_keyfile_name(
         getenv.CREDENTIAL_JSON_PATH, scope)
-
-    # OAuth2の資格情報を使用してGoogle APIにログインします。
     gc = gspread.authorize(credentials)
-    # 共有設定したスプレッドシートキーを変数[SPREADSHEET_KEY]に格納する。
-    getenv.SPREADSHEET_KEY = '1k9V8Cj8_5WwNn39ylnkIv4GVXlw-bJ-Pmy9x-xPAW8k'
-
-    # 共有設定したスプレッドシートのシート1を開く
     wks = gc.open_by_key(getenv.SPREADSHEET_KEY).sheet1
 
     return wks
