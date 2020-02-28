@@ -79,7 +79,7 @@ def image_to_text(src):
 def ocr_from_image(img_path):
     img = Image.open(img_path).convert("L").point(
         lambda x: 0 if x < 192 else 255, mode="1")
-    crops = {"types": (281, 145, 330, 172),
+    crops = {"types": (281, 145, 332, 172),
              "time_m": (251, 194, 273, 223),
              "time_s": (297, 195, 331, 222),
              "speed": (271, 245, 333, 273),
