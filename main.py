@@ -17,17 +17,19 @@ import getenv
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import time
+import shutil
 
 
 class ChangeHandler(FileSystemEventHandler):
 
     def on_created(self, event):
         # event.src_path だとダウンロード一時ファイルが得られてしまうので
-        # イベントが発火して少し待ってから最新のファイルを取得する
+        # ファイル作成イベントが発火して少し待ってから最新のファイルを取得する
         time.sleep(1)
         list_of_files = glob.glob(getenv.TARGET_DIR+"/*")
         img_path = max(list_of_files, key=os.path.getctime)
         log_downloaded_image(img_path)
+        move_image(img_path)
 
 
 def get_sheet():
@@ -118,6 +120,13 @@ def watch_directory():
         except KeyboardInterrupt:
             observer.stop()
         observer.join()
+
+
+def move_image(img_path):
+    img_save_name = datetime.datetime.fromtimestamp(
+        os.stat(img_path).st_atime).strftime("%y%m%d-%H%M%S")
+    shutil.move(img_path, f'./{img_save_name}.jpg')
+    pass
 
 
 if __name__ == "__main__":
