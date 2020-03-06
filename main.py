@@ -29,7 +29,6 @@ class ChangeHandler(FileSystemEventHandler):
         list_of_files = glob.glob(getenv.TARGET_DIR+"/*")
         img_path = max(list_of_files, key=os.path.getctime)
         log_downloaded_image(img_path)
-        move_image(img_path)
 
 
 def get_sheet():
@@ -105,6 +104,7 @@ def log_downloaded_image(img_path):
     else:
         typing_data = ocr_image(img_path)
         write_sheet(typing_data)
+        move_image(img_path)
 
 
 def watch_directory():
